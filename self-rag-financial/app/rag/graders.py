@@ -13,7 +13,9 @@ from app.rag.prompts import (
     DOCUMENT_RELEVANCE_PROMPT, DOCUMENT_RELEVANCE_USER,
     HALLUCINATION_CHECK_PROMPT, HALLUCINATION_CHECK_USER,
     USEFULNESS_PROMPT, USEFULNESS_USER,
-    QUERY_REWRITE_PROMPT, QUERY_REWRITE_USER
+    QUERY_REWRITE_PROMPT, QUERY_REWRITE_USER,
+    FINANCIAL_GENERATION_SYSTEM_PROMPT,
+    FINANCIAL_RELEVANCE_CONTEXT
 )
 
 logger = logging.getLogger(__name__)
@@ -86,9 +88,10 @@ class Graders:
             "reason": "Grader error — defaulting to relevant",
             "relevance_score": 0.5
         }
+        prompt = DOCUMENT_RELEVANCE_PROMPT + "\n\n" + FINANCIAL_RELEVANCE_CONTEXT
         try:
             user_msg = DOCUMENT_RELEVANCE_USER.format(query=query, chunk_text=chunk_text)
-            res = self._call_grader(DOCUMENT_RELEVANCE_PROMPT, user_msg, expect_json=True)
+            res = self._call_grader(prompt, user_msg, expect_json=True)
             
             if not isinstance(res, dict):
                 return fallback
@@ -232,13 +235,7 @@ class Graders:
                 
             context_string = "\\n\\n---\\n\\n".join(context_parts)
             
-            system_prompt = """You are a financial document analyst. Answer the user's question using ONLY the provided source context. Follow these rules strictly:
-1. Cite your sources inline using [Source: filename, Page X] format
-2. Use only facts present in the provided context
-3. If the context does not contain enough information, say explicitly: "The provided documents do not contain sufficient information to answer this question."
-4. Do not add general financial knowledge not present in the context
-5. If documents contradict each other, note the contradiction explicitly
-6. Keep the answer concise and structured — use bullet points for lists of figures"""
+            system_prompt = FINANCIAL_GENERATION_SYSTEM_PROMPT
 
             user_msg = f"Context:\\n{context_string}\\n\\nQuestion: {query}\\n\\nAnswer:"
             
