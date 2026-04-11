@@ -1,0 +1,45 @@
+# LLM & Agent Framework
+langchain
+langchain-groq
+langchain-community
+langgraph
+langsmith
+
+# API Backend
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Vector Store & Embeddings
+chromadb
+sentence-transformers
+
+# Sparse Retrieval
+rank-bm25
+
+# Document Parsing
+pdfplumber
+beautifulsoup4
+lxml
+
+# Database
+# sqlite3 is built into Python — no package needed
+
+# Caching
+upstash-redis
+
+# Evaluation
+ragas
+datasets
+
+# Financial Data
+yfinance
+requests
+
+# Utilities
+pydantic
+pydantic-settings
+python-dotenv
+numpy
+pandas
+httpx
