@@ -74,3 +74,25 @@ class ChromaStore:
             return len(res['ids']) > 0
         except Exception:
             return False
+
+    def fetch_by_ids(self, chunk_ids: List[str]) -> List[dict]:
+        if not chunk_ids:
+            return []
+            
+        res = self.main_collection.get(ids=chunk_ids, include=["documents", "metadatas"])
+        
+        # Preserve input order if possible, though Chroma might return them differently
+        data_map = {}
+        for i, cid in enumerate(res['ids']):
+            data_map[cid] = {
+                "chunk_id": cid,
+                "text": res['documents'][i],
+                "metadata": res['metadatas'][i]
+            }
+            
+        final_results = []
+        for cid in chunk_ids:
+            if cid in data_map:
+                final_results.append(data_map[cid])
+                
+        return final_results
