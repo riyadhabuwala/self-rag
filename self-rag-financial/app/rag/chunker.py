@@ -3,7 +3,7 @@ import re
 from typing import List, Dict
 
 class ChunkingStrategy:
-    def chunk_prose(self, text: str, chunk_size: int = 400, chunk_overlap: int = 50) -> List[str]:
+    def chunk_prose(self, text: str, chunk_size: int = 800, chunk_overlap: int = 200) -> List[str]:
         sentences = re.split(r'(?<=[.?!])\s+', text)
         chunks = []
         current_chunk = []

@@ -80,7 +80,15 @@ def grade_documents_node(state: SelfRAGState, graders: Graders, retriever: Hybri
         chunks_with_verdicts = []
         relevant_chunks = []
         for chunk in chunks:
-            res = graders.grade_document_relevance(query=state["query"], chunk_text=chunk.get("text", ""))
+            chunk_text = chunk.get("text", "")
+            res = graders.grade_document_relevance(query=state["query"], chunk_text=chunk_text)
+            
+            # --- ISREL DEBUG (Troubleshooting false negatives) ---
+            print(f"\n--- ISREL DEBUG ---")
+            print(f"Query: {state['query']}")
+            print(f"Chunk (first 200 chars): {chunk_text[:200]}")
+            print(f"Verdict: {res.get('verdict')} | Reason: {res.get('reason')}")
+            
             chunk_copy = dict(chunk)
             chunk_copy["relevance_verdict"] = res
             chunks_with_verdicts.append(chunk_copy)
@@ -106,9 +114,28 @@ def grade_documents_node(state: SelfRAGState, graders: Graders, retriever: Hybri
 def rewrite_query_node(state: SelfRAGState, graders: Graders, retriever: HybridRetriever) -> dict:
     try:
         retry_count = state.get("retry_count", 0)
+        
+        # Strategy changes per retry attempt
+        if retry_count == 0:
+            strategy_hint = "expand with financial synonyms and related terms"
+        elif retry_count == 1:
+            strategy_hint = "simplify the original question, use fewer words, focus on key entities"
+        else:
+            # Third retry (or more): use original query verbatim - don't rewrite anymore
+            original_query = state["query"]
+            logger.info(f"[REWRITE] attempt {retry_count+1} -> falling back to original '{original_query}'")
+            return {
+                "active_query": original_query,
+                "retry_count": retry_count + 1,
+                "retrieved_chunks": [],
+                "relevant_chunks": []
+            }
+            
+        failure_reason = f"{state.get('failure_reason', 'No relevant documents found')}. Strategy: {strategy_hint}"
+
         res = graders.rewrite_query(
             query=state.get("active_query", state["query"]),
-            failure_reason=state.get("failure_reason", "No relevant documents found"),
+            failure_reason=failure_reason,
             attempt_number=retry_count + 1
         )
         new_query = res.get("rewritten_query", state.get("active_query", state["query"]))

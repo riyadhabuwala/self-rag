@@ -27,12 +27,14 @@ RETRIEVAL_ROUTER_USER = """Query: {query}
 
 Return ONLY the JSON object."""
 
-DOCUMENT_RELEVANCE_PROMPT = """You are a document relevance grader for a financial RAG system.
-Given a user query and a retrieved document chunk, decide if the chunk
-contains information relevant to answering the query.
+DOCUMENT_RELEVANCE_PROMPT = """You are grading whether a retrieved document chunk 
+could help answer a question, even partially.
 
-Be precise: a chunk about Apple's revenue is NOT relevant to a query
-about Apple's risk factors, even though both are about Apple.
+IMPORTANT RULES:
+- Be GENEROUS. If the chunk contains ANY related information, mark it relevant.
+- Partial relevance counts as relevant.
+- Background context that helps understand the answer counts as relevant.
+- Only mark irrelevant if the chunk is completely unrelated to the topic.
 
 Return ONLY valid JSON. No markdown, no explanation, no preamble.
 
@@ -44,7 +46,7 @@ Output schema:
 }
 
 Example output:
-{"verdict": "relevant", "reason": "Chunk contains FY2023 revenue figures directly addressing the query.", "relevance_score": 0.92}"""
+{"verdict": "relevant", "reason": "Chunk contains context addressing the query partially.", "relevance_score": 0.92}"""
 
 DOCUMENT_RELEVANCE_USER = """Query: {query}
 

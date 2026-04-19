@@ -19,9 +19,9 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSION: int = 384
 
     # Retrieval Settings
-    TOP_K_DENSE: int = 10
-    TOP_K_BM25: int = 10
-    TOP_K_FINAL: int = 5
+    TOP_K_DENSE: int = 15
+    TOP_K_BM25: int = 15
+    TOP_K_FINAL: int = 10
     RRF_K: int = 60
     MULTI_QUERY_COUNT: int = 3
 
@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.2"
     DEBUG: bool = False
+    
+    SQLITE_DB_PATH: str = "./chat_history.db"
 
     model_config = {
         "env_file": ".env",

@@ -88,9 +88,65 @@ def build_graph(graders: Graders = None, retriever: HybridRetriever = None):
     logger.info("Self-RAG graph compiled successfully")
     return graph
 
-def run_query(query: str, session_id: str = None, filters: dict = None, max_retries: int = None, graph=None) -> dict:
+def run_query(
+    query: str, 
+    session_id: str = None, 
+    filters: dict = None, 
+    max_retries: int = None, 
+    graph=None, 
+    db=None,
+    cache=None
+) -> dict:
     if graph is None:
         graph = build_graph()
+
+    if cache is not None:
+        cached_response = cache.get(query)
+        if cached_response is not None:
+            cached_response["cache_hit"] = True
+            cached_response["session_id"] = session_id
+
+            if db is not None:
+                if session_id is None:
+                    session_id = db.create_session(
+                        document_filter=filters
+                    )["session_id"]
+                    cached_response["session_id"] = session_id
+                db.save_message(session_id, "user", query,
+                                {"query_type": cached_response.get("query_type", "")})
+                db.save_message(
+                    session_id, "assistant",
+                    cached_response["answer"],
+                    {
+                        "confidence": cached_response.get("confidence"),
+                        "groundedness": cached_response.get("groundedness"),
+                        "usefulness_score": cached_response.get("usefulness_score"),
+                        "retry_count": cached_response.get("retries", 0),
+                        "sources": cached_response.get("sources", []),
+                        "unsupported_claims": cached_response.get(
+                            "unsupported_claims", []),
+                        "active_query": cached_response.get("active_query", query),
+                        "response_time_ms": 50,
+                        "cache_hit": True
+                    }
+                )
+            logger.info(f"[CACHE HIT] Returning cached response for: {query[:60]}")
+            return cached_response
+
+    if db is not None:
+        if not session_id:
+            session_data = db.create_session(document_filter=filters)
+            session_id = session_data["session_id"]
+        else:
+            session_data = db.get_session(session_id)
+            if not session_data:
+                session_data = db.create_session(document_filter=filters)
+                session_id = session_data["session_id"]
+                
+        user_metadata = {
+            "query_type": "user_input"
+        }
+        db.save_message(session_id, "user", query, user_metadata)
 
     initial_state = {
         "query": query,
@@ -120,4 +176,51 @@ def run_query(query: str, session_id: str = None, filters: dict = None, max_retr
     elapsed_ms = int((time.time() - start_time) * 1000)
 
     final_state["response_time_ms"] = elapsed_ms
+
+    if cache is not None and not final_state.get("cache_hit", False):
+        cacheable = {
+            "answer": final_state["answer"],
+            "confidence": final_state.get("confidence", ""),
+            "groundedness": final_state.get("groundedness", ""),
+            "usefulness_score": final_state.get("usefulness_score", 0),
+            "sources": final_state.get("sources", []),
+            "unsupported_claims": final_state.get("unsupported_claims", []),
+            "retries": final_state.get("retry_count", 0),
+            "active_query": final_state.get("active_query", query),
+            "query_type": final_state.get("query_type", ""),
+            "cache_hit": False
+        }
+        if (final_state.get("answer") and
+            final_state.get("groundedness") != "no" and
+            final_state.get("usefulness_score", 0) >= 3):
+            cache.set(query, cacheable)
+            logger.info(f"[CACHE SET] Stored response for: {query[:60]}")
+        else:
+            logger.info(
+                f"[CACHE SKIP] Response not worth caching "
+                f"(groundedness={final_state.get('groundedness')}, "
+                f"usefulness={final_state.get('usefulness_score')})"
+            )
+
+    if db is not None:
+        assistant_metadata = {
+            "query_type": final_state.get("query_type"),
+            "confidence": final_state.get("confidence"),
+            "groundedness": final_state.get("groundedness"),
+            "usefulness_score": final_state.get("usefulness_score"),
+            "retry_count": final_state.get("retry_count"),
+            "sources": final_state.get("sources"),
+            "unsupported_claims": final_state.get("unsupported_claims"),
+            "active_query": final_state.get("active_query"),
+            "response_time_ms": final_state.get("response_time_ms"),
+            "cache_hit": final_state.get("cache_hit")
+        }
+        msg_id = db.save_message(session_id, "assistant", final_state.get("answer", ""), assistant_metadata)
+        
+        db.log_retrieved_docs(
+            msg_id, 
+            final_state.get("retrieved_chunks", []), 
+            final_state.get("relevant_chunks", [])
+        )
+        
     return final_state
