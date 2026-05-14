@@ -13,8 +13,13 @@ class BM25Index:
     def build(self, chroma_store: ChromaStore) -> None:
         results = chroma_store.main_collection.get(include=["documents", "metadatas"])
         self.chunk_ids = results["ids"]
-        self.corpus_texts = results["documents"]
+        self.corpus_texts = results.get("documents", [])
         
+        if not self.corpus_texts:
+            print("BM25 index skipped — no documents found in storage")
+            self.index = None
+            return
+
         tokenized_corpus = []
         for text in self.corpus_texts:
             tokenized_corpus.append(re.findall(r'\b\w+\b', text.lower()))
