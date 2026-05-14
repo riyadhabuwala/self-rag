@@ -1,3 +1,6 @@
+from backend.app.config import settings
+from typing import List
+
 _model_cache = {}
 
 class Embedder:
