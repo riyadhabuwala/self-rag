@@ -354,14 +354,29 @@ async def delete_session_endpoint(
         db.delete_session(session_id)
         return {"status": "deleted", "session_id": session_id}
 
+@app.get("/cache/stats", dependencies=[Depends(verify_api_key)])
+async def cache_stats_endpoint(cache=Depends(get_cache)):
+    """Get statistics about the semantic cache."""
+    if cache is None:
+        return {"redis_available": False, "cache_size": 0}
+    return cache.get_stats()
+
 @app.get("/metrics", dependencies=[Depends(verify_api_key)])
 async def metrics_endpoint(db=Depends(get_db)):
     """Get system usage and validation metrics."""
-    metrics = db.get_metrics()
-    store = ChromaStore()
-    metrics["total_chunks_indexed"] = store.get_doc_count()
-    metrics["timestamp"] = datetime.utcnow().isoformat()
-    return metrics
+    try:
+        metrics = db.get_metrics()
+        try:
+            store = ChromaStore()
+            metrics["total_chunks_indexed"] = store.get_doc_count()
+        except Exception:
+            metrics["total_chunks_indexed"] = -1
+            
+        metrics["timestamp"] = datetime.utcnow().isoformat()
+        return metrics
+    except Exception as e:
+        logger.error(f"Metrics error: {e}")
+        return {"error": "Could not fetch metrics", "timestamp": datetime.utcnow().isoformat()}
 
 @app.get("/evaluate", dependencies=[Depends(verify_api_key)])
 async def evaluate_endpoint(background_tasks: BackgroundTasks):
