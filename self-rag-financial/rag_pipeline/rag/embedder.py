@@ -1,5 +1,9 @@
 from backend.app.config import settings
 from typing import List
+import os
+import gc
+import asyncio
+import logging
 
 _model_cache = {}
 
@@ -11,10 +15,14 @@ class Embedder:
     def model(self):
         global _model_cache
         if self.model_name not in _model_cache:
+            import gc
             # pyrefly: ignore [missing-import]
             from sentence_transformers import SentenceTransformer
-            print(f"Loading embedding model: {self.model_name} (this may take a moment)...")
-            _model_cache[self.model_name] = SentenceTransformer(self.model_name)
+            print(f"Loading embedding model: {self.model_name} (Memory-optimized)...")
+            # Load model and immediately clear memory
+            model = SentenceTransformer(self.model_name, device="cpu")
+            _model_cache[self.model_name] = model
+            gc.collect() 
         return _model_cache[self.model_name]
 
     def embed(self, texts: List[str]) -> List[List[float]]:

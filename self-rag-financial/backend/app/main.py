@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 _graph = None
 _db = None
 _cache = None
-_executor = ThreadPoolExecutor(max_workers=4)
+_executor = ThreadPoolExecutor(max_workers=1)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,6 +44,8 @@ async def lifespan(app: FastAPI):
 
     logger.info("Initializing database...")
     _db = Database()
+    import gc
+    gc.collect() # Immediate cleanup after DB init
 
     # Note: AI Models and Graph are now lazy-loaded on the first request
     # to bypass the 60s Render startup timeout.
