@@ -302,7 +302,8 @@ async def docs_info_endpoint():
             ]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Docs Info error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 @app.get("/sessions", dependencies=[Depends(verify_api_key)])
 async def list_sessions_endpoint(
@@ -402,6 +403,7 @@ async def evaluate_endpoint(background_tasks: BackgroundTasks):
     }
 
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run(
         "app.main:app",
