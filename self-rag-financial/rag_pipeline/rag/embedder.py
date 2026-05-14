@@ -11,6 +11,7 @@ class Embedder:
     def model(self):
         global _model_cache
         if self.model_name not in _model_cache:
+            # pyrefly: ignore [missing-import]
             from sentence_transformers import SentenceTransformer
             print(f"Loading embedding model: {self.model_name} (this may take a moment)...")
             _model_cache[self.model_name] = SentenceTransformer(self.model_name)
