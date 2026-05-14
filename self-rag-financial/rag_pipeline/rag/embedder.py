@@ -1,12 +1,17 @@
-"""Embedding Generator"""
-from sentence_transformers import SentenceTransformer
-from backend.app.config import settings
-from typing import List
+_model_cache = {}
 
 class Embedder:
     def __init__(self, model_name: str = settings.EMBEDDING_MODEL):
-        print(f"Loading embedding model: {model_name}")
-        self.model = SentenceTransformer(model_name)
+        self.model_name = model_name
+
+    @property
+    def model(self):
+        global _model_cache
+        if self.model_name not in _model_cache:
+            from sentence_transformers import SentenceTransformer
+            print(f"Loading embedding model: {self.model_name} (this may take a moment)...")
+            _model_cache[self.model_name] = SentenceTransformer(self.model_name)
+        return _model_cache[self.model_name]
 
     def embed(self, texts: List[str]) -> List[List[float]]:
         # Generate embeddings in batches

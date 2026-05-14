@@ -39,25 +39,15 @@ _executor = ThreadPoolExecutor(max_workers=4)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # STARTUP
-    global _graph, _db, _cache
+    global _db
     logger.info("Starting Self-RAG Financial Intelligence System...")
 
     logger.info("Initializing database...")
     _db = Database()
 
-    logger.info("Building Self-RAG graph (loading models  may take 30s)...")
-    # Run in thread pool so it doesn't block the event loop
-    loop = asyncio.get_event_loop()
-    _graph = await loop.run_in_executor(_executor, build_graph)
-    logger.info("Self-RAG graph ready")
-
-    logger.info("Initializing semantic cache...")
-    from rag_pipeline.rag.cache import SemanticCache
-    from rag_pipeline.rag.embedder import Embedder
-    _cache_embedder = Embedder()
-    _cache = SemanticCache(embedder=_cache_embedder)
-    logger.info(f"Semantic cache ready — {_cache.get_stats()}")
-
+    # Note: AI Models and Graph are now lazy-loaded on the first request
+    # to bypass the 60s Render startup timeout.
+    
     yield
 
     # SHUTDOWN
@@ -117,9 +107,10 @@ async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")):
     return x_api_key
 
 def get_graph():
+    global _graph
     if _graph is None:
-        raise HTTPException(status_code=503,
-            detail="Graph not initialized. Server is still starting up.")
+        logger.info("Lazy-loading Self-RAG graph for the first time...")
+        _graph = build_graph()
     return _graph
 
 def get_db():
@@ -129,6 +120,12 @@ def get_db():
     return _db
 
 def get_cache():
+    global _cache
+    if _cache is None:
+        logger.info("Lazy-loading semantic cache for the first time...")
+        from rag_pipeline.rag.cache import SemanticCache
+        from rag_pipeline.rag.embedder import Embedder
+        _cache = SemanticCache(embedder=Embedder())
     return _cache
 
 @app.exception_handler(Exception)
