@@ -94,6 +94,6 @@ if __name__ == "__main__":
     import sys
     import os
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from app.rag.chroma_store import ChromaStore
+    from rag_pipeline.rag.chroma_store import ChromaStore
     store = ChromaStore()
     print(f"Total chunks in ChromaDB: {store.get_doc_count()}")
